@@ -1,0 +1,117 @@
+# =====================================================================
+# OTel Collector - GATEWAY (mode: deployment). A "peca central" de egress.
+# Recebe OTLP dos microsservicos (e os logs vindos do agent) e roteia:
+#   traces  -> Tempo (APM open-source)
+#   metrics -> Prometheus (exporter prometheus :8889 + ServiceMonitor)
+#   logs    -> Loki (ingestao OTLP nativa)
+#
+# Alem disso, gera o SERVICE GRAPH e span metrics a partir dos traces,
+# via connectors servicegraph + spanmetrics -> Prometheus. Isso alimenta o
+# "mapa de dependencias" (Service Graph) no datasource Tempo do Grafana.
+#
+# Chart: open-telemetry/opentelemetry-collector 0.178.3
+# ns: monitoring | release: otel-gateway
+#
+# Endpoint para os apps (Frente 3):
+#   gRPC -> otel-gateway-opentelemetry-collector.monitoring.svc.cluster.local:4317
+#   HTTP -> otel-gateway-opentelemetry-collector.monitoring.svc.cluster.local:4318
+# =====================================================================
+
+mode: deployment
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+command:
+  name: otelcol-contrib
+
+presets:
+  kubernetesAttributes:
+    enabled: false   # dados ja chegam enriquecidos (apps + agent)
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 512Mi
+
+ports:
+  otlp:
+    enabled: true
+    containerPort: 4317
+    servicePort: 4317
+    protocol: TCP
+  otlp-http:
+    enabled: true
+    containerPort: 4318
+    servicePort: 4318
+    protocol: TCP
+  prometheus:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  connectors:
+    # Gera metricas RED por servico a partir dos spans
+    spanmetrics:
+      namespace: traces_span_metrics
+      histogram:
+        explicit:
+          buckets: ["100us", "1ms", "5ms", "10ms", "50ms", "100ms", "250ms", "500ms", "1s", "5s"]
+      dimensions:
+        - name: http.method
+        - name: http.route
+    # Gera o grafo de dependencias entre servicos (Service Graph)
+    servicegraph:
+      latency_histogram_buckets: ["1ms", "10ms", "100ms", "250ms", "1s", "5s"]
+      store:
+        ttl: 5s
+        max_items: 2000
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+    resource:
+      attributes:
+        - key: deployment.environment
+          value: fiap-tech-challenge
+          action: upsert
+  exporters:
+    debug:
+      verbosity: basic
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc.cluster.local:4317
+      tls:
+        insecure: true
+    prometheus:
+      endpoint: 0.0.0.0:8889
+      resource_to_telemetry_conversion:
+        enabled: true
+    otlphttp/loki:
+      endpoint: http://loki-gateway.monitoring.svc.cluster.local/otlp
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, resource, batch]
+        exporters: [otlp/tempo, spanmetrics, servicegraph, debug]
+      metrics:
+        receivers: [otlp, spanmetrics, servicegraph]
+        processors: [memory_limiter, resource, batch]
+        exporters: [prometheus]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, resource, batch]
+        exporters: [otlphttp/loki]

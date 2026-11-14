@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: analytics-service
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+    targetRevision: main
+    path: gitops/analytics-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tc2-analytics
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

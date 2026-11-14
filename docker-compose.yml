@@ -1,0 +1,128 @@
+services:
+
+  postgres-auth:
+    image: postgres:16
+    container_name: dc-postgres-auth
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth_db
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+      - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+
+
+  postgres-flags:
+    image: postgres:16
+    container_name: dc-postgres-flags
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: flags_db
+    volumes:
+      - postgres_flags_data:/var/lib/postgresql/data
+      - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+
+
+  postgres-targeting:
+    image: postgres:16
+    container_name: dc-postgres-targeting
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: targeting_db
+    volumes:
+      - postgres_targeting_data:/var/lib/postgresql/data
+      - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5435:5432"
+
+  redis:
+    image: redis:7-alpine
+    container_name: dc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+
+  auth-service:
+    image: tc2-auth-service
+    container_name: dc-auth-service
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: 8001
+      DATABASE_URL: postgres://postgres:postgres@postgres-auth:5432/auth_db
+      MASTER_KEY: admin-secreto-123
+    depends_on:
+      - postgres-auth
+
+
+  flag-service:
+    image: tc2-flag-service
+    container_name: dc-flag-service
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres-flags:5432/flags_db
+      AUTH_SERVICE_URL: http://auth-service:8001
+    depends_on:
+      - postgres-flags
+      - auth-service
+
+
+  targeting-service:
+    image: tc2-targeting-service
+    container_name: dc-targeting-service
+    ports:
+      - "8003:8003"
+    environment:
+      PORT: 8003
+      DATABASE_URL: postgres://postgres:postgres@postgres-targeting:5432/targeting_db
+      AUTH_SERVICE_URL: http://auth-service:8001
+    depends_on:
+      - postgres-targeting
+      - auth-service
+
+
+  evaluation-service:
+    image: tc2-evaluation-service
+    container_name: dc-evaluation-service
+    ports:
+      - "8004:8004"
+    environment:
+      PORT: 8004
+      REDIS_URL: redis://redis:6379
+      FLAG_SERVICE_URL: http://flag-service:8002
+      TARGETING_SERVICE_URL: http://targeting-service:8003
+      AWS_REGION: us-east-1
+      AWS_SQS_URL: https://sqs.us-east-1.amazonaws.com/521590706153/analytics-service-sqs
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      - redis
+      - flag-service
+      - targeting-service
+
+
+  analytics-service:
+    image: tc2-analytics-service
+    container_name: dc-analytics-service
+    ports:
+      - "8005:8005"
+    environment:
+      AWS_REGION: us-east-1
+      AWS_SQS_URL: https://sqs.us-east-1.amazonaws.com/521590706153/analytics-service-sqs
+      AWS_DYNAMODB_TABLE: ToggleMasterAnalytics
+
+
+volumes:
+  postgres_auth_data:
+  postgres_flags_data:
+  postgres_targeting_data:
+  redis_data:

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tc2-evaluation-config
+  namespace: tc2-evaluation
+
+data:
+  PORT: "8004"
+  REDIS_URL: "rediss://tc2-cache-redis-galx4m.serverless.use1.cache.amazonaws.com:6379"
+  FLAG_SERVICE_URL: "http://tc2-flags-service.tc2-flags.svc.cluster.local:8002"
+  TARGETING_SERVICE_URL: "http://tc2-targeting-service.tc2-targeting.svc.cluster.local:8003"
+  AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/521590706153/analytics-service-sqs"
+  AWS_REGION: "us-east-1"

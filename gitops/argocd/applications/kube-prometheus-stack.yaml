@@ -1,0 +1,33 @@
+# Application do ArgoCD: kube-prometheus-stack (Helm) com values versionados no git.
+# Multi-source: chart vem do repo Helm oficial; values vem do nosso repo ($values).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 93.3.0
+      helm:
+        releaseName: kps
+        valueFiles:
+          - $values/gitops/monitoring/kube-prometheus-stack/values.yaml
+    # TODO(repo-sweep): trocar para a URL final do repo da Fase 4
+    - repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # CRDs grandes do Prometheus Operator

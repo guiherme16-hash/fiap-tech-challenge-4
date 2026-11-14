@@ -1,0 +1,27 @@
+# Application do ArgoCD: dashboards customizados do Grafana (ConfigMaps).
+# O sidecar do Grafana auto-carrega qualquer ConfigMap com label grafana_dashboard=1.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-dashboards
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # TODO(repo-sweep): trocar para a URL final do repo da Fase 4
+    repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+    targetRevision: main
+    path: gitops/monitoring/dashboards
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

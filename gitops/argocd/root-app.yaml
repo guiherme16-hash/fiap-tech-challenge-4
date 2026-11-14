@@ -1,0 +1,25 @@
+# App-of-apps: Application raiz que gerencia as Applications dos microsserviÃ§os + ingress.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: togglemaster-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+    targetRevision: main
+    path: gitops/argocd/applications
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

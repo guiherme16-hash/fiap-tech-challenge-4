@@ -1,0 +1,50 @@
+# =====================================================================
+# Grafana Tempo (single binary) - backend de traces distribuidos (APM open-source).
+# Substitui o New Relic: traces ficam 100% no cluster.
+# Chart: grafana/tempo 1.24.4 | ns monitoring | release tempo
+#
+# Recebe traces via OTLP do OTel gateway:
+#   tempo.monitoring.svc.cluster.local:4317 (gRPC)
+# Query/API (Grafana datasource): http://tempo.monitoring.svc.cluster.local:3200
+#
+# O Service Graph e os span metrics sao gerados no OTel Collector (connectors),
+# entao o metricsGenerator do Tempo fica DESLIGADO.
+# =====================================================================
+
+replicas: 1
+
+tempo:
+  reportingEnabled: false
+
+  # Service graph vem do OTel Collector -> nao precisa do gerador do Tempo
+  metricsGenerator:
+    enabled: false
+
+  # Storage local (filesystem). Dado efemero no demo (sem PVC).
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+
+  # Receiver OTLP ja vem habilitado por padrao (4317/4318); mantemos.
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+# emptyDir no demo
+persistence:
+  enabled: false

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-agent
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.178.3
+      helm:
+        releaseName: otel-agent
+        valueFiles:
+          - $values/gitops/monitoring/otel-agent/values.yaml
+    # TODO(repo-sweep): trocar para a URL final do repo da Fase 4
+    - repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

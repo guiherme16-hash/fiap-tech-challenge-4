@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tc2-auth-service
+  namespace: tc2-auth
+spec:
+  type: ClusterIP
+  selector:
+    app: tc2-auth
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001

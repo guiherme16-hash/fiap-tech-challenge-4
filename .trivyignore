@@ -1,0 +1,3 @@
+# CVEs ignorados conscientemente (com justificativa e, de preferência, data).
+# Formato: um CVE por linha, ex:
+# CVE-2023-12345  # falso positivo / não explorável no nosso contexto

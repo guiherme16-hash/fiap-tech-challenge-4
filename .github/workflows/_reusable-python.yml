@@ -1,0 +1,178 @@
+name: reusable-python-ci
+
+# Pipeline DevSecOps reutilizável para os microsserviços em Python
+# (analytics, flag, targeting).
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        description: "Nome do serviço (e pasta no gitops)"
+        required: true
+        type: string
+      service_path:
+        description: "Caminho da pasta do serviço no monorepo"
+        required: true
+        type: string
+      ecr_repository:
+        description: "Nome do repositório ECR"
+        required: true
+        type: string
+      python_version:
+        description: "Versão do Python"
+        required: false
+        type: string
+        default: "3.12"
+      aws_region:
+        description: "Região AWS"
+        required: false
+        type: string
+        default: "us-east-1"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # 1) Build & testes unitários
+  # ----------------------------------------------------------------------------
+  build-test:
+    name: Build & Unit Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.service_path }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+          cache: pip
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Verificar compilação (syntax)
+        run: python -m compileall -q .
+      - name: Testes unitários (tolerante à ausência de testes)
+        run: |
+          python -m pytest -q || ([ "$?" = "5" ] && echo "Nenhum teste encontrado (ok)")
+
+  # ----------------------------------------------------------------------------
+  # 2) Linter / Static Analysis
+  # ----------------------------------------------------------------------------
+  lint:
+    name: Linter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+      - name: Instalar flake8
+        run: pip install flake8
+      - name: flake8
+        continue-on-error: true # informativo; o gate de bloqueio é o de segurança
+        run: flake8 ${{ inputs.service_path }}
+
+  # ----------------------------------------------------------------------------
+  # 3) Security Scan (SAST + SCA) — bloqueia em vulnerabilidade CRÍTICA
+  # ----------------------------------------------------------------------------
+  security:
+    name: Security Scan (SAST & SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      # SAST — bandit (informativo)
+      - name: Instalar bandit
+        run: pip install bandit
+      - name: bandit (SAST)
+        continue-on-error: true
+        run: bandit -r ${{ inputs.service_path }} --severity-level high --confidence-level high
+
+      # SCA — Trivy instalado via apt oficial (evita a action comprometida). Falha em CRÍTICA.
+      - name: Instalar Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+      - name: Trivy SCA (dependencies)
+        run: trivy fs --scanners vuln --severity CRITICAL --exit-code 1 --ignore-unfixed ${{ inputs.service_path }}
+
+  # ----------------------------------------------------------------------------
+  # 4) Docker Build & Push (só no push para main) + bump do GitOps
+  # ----------------------------------------------------------------------------
+  docker:
+    name: Docker Build, Scan & Push
+    needs: [build-test, lint, security]
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Metadata (tag = short SHA)
+        id: meta
+        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Login no ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build da imagem
+        working-directory: ${{ inputs.service_path }}
+        run: docker build -t "${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}:${{ steps.meta.outputs.short_sha }}" .
+
+      - name: Instalar Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+      - name: Trivy (Container Scan) — bloqueia em CRITICA
+        run: trivy image --severity CRITICAL --exit-code 1 --ignore-unfixed "${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}:${{ steps.meta.outputs.short_sha }}"
+
+      - name: Push para o ECR
+        run: docker push "${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}:${{ steps.meta.outputs.short_sha }}"
+
+      - name: Bump da tag no GitOps
+        env:
+          IMAGE: "${{ steps.ecr.outputs.registry }}/${{ inputs.ecr_repository }}:${{ steps.meta.outputs.short_sha }}"
+          MANIFEST: "gitops/${{ inputs.service_name }}/deployment.yaml"
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Re-tenta lidando com pushes concorrentes dos outros pipelines.
+          for i in $(seq 1 6); do
+            git fetch origin main
+            git checkout -B main origin/main
+            sed -i -E "s#(image:[[:space:]]*).*/${{ inputs.ecr_repository }}:.*#\1${IMAGE}#" "$MANIFEST"
+            if git diff --quiet -- "$MANIFEST"; then
+              echo "Manifesto ja atualizado, nada a fazer."; exit 0
+            fi
+            git add "$MANIFEST"
+            git commit -m "chore(${{ inputs.service_name }}): bump image to ${{ steps.meta.outputs.short_sha }} [skip ci]"
+            if git push origin main; then
+              echo "Bump publicado."; exit 0
+            fi
+            echo "Push rejeitado por concorrencia (tentativa $i). Recomecando..."
+            sleep $((RANDOM % 5 + 2))
+          done
+          echo "Falhou apos varias tentativas."; exit 1

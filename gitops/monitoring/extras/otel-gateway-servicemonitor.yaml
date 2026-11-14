@@ -1,0 +1,21 @@
+# Faz o Prometheus (kube-prometheus-stack) raspar as metricas que o OTel
+# gateway expoe no exporter prometheus (:8889).
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-gateway
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: otel-gateway
+      app.kubernetes.io/name: opentelemetry-collector
+  endpoints:
+    - port: prometheus
+      path: /metrics
+      interval: 30s

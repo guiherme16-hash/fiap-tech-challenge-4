@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: tc2-flags-route-service
+  namespace: tc2-ingress
+
+spec:
+  type: ExternalName
+
+  externalName: tc2-flags-service.tc2-flags.svc.cluster.local
+
+  ports:
+    - port: 8002
+      targetPort: 8002

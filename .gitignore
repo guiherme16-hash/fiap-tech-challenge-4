@@ -1,0 +1,38 @@
+# ==== Segredos / ambiente (NUNCA commitar) ====
+.env
+*.env
+!*.env.example
+**/.env
+
+# ==== Terraform ====
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+crash.log
+crash.*.log
+*.tfplan
+
+# ==== Go ====
+bin/
+*.exe
+
+# ==== Python ====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ==== Node/editor ====
+.DS_Store
+.vscode/
+
+# Fase 4 - ferramentas/artefatos locais de validacao (nao versionar)
+_tools/
+_*.yaml
+_*.txt
+_*.err

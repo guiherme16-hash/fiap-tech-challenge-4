@@ -1,0 +1,2 @@
+# Arquivo-gatilho: alterar este arquivo faz um push acionar todos os pipelines de CI.
+run: 0

@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tc2-targeting-service
+  namespace: tc2-targeting
+spec:
+  type: ClusterIP
+  selector:
+    app: tc2-targeting
+  ports:
+    - protocol: TCP
+      port: 8003
+      targetPort: 8003
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  # Corrigido: no Phase 2 este ConfigMap estava nomeado como tc2-flags-config
+  # no namespace tc2-flags, o que quebrava a config do targeting.
+  name: tc2-targeting-config
+  namespace: tc2-targeting
+data:
+  PORT: "8003"
+  AUTH_SERVICE_URL: "http://tc2-auth-service.tc2-auth.svc.cluster.local:8001"

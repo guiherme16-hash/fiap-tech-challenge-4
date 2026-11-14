@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: tc2-analytics
+  namespace: tc2-analytics
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: tc2-analytics
+
+  template:
+    metadata:
+      labels:
+        app: tc2-analytics
+
+    spec:
+      containers:
+        - name: tc2-analytics
+          image: 521590706153.dkr.ecr.us-east-1.amazonaws.com/tc2-analytics-service:v1
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          ports:
+            - containerPort: 8005
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: PORT
+                  
+          env:
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_REGION
+                  
+          env:
+            - name: AWS_DYNAMODB_TABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_DYNAMODB_TABLE
+                  
+          env:
+            - name: AWS_SQS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_SQS_URL
+
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-analytics-secret
+                  key: AWS_ACCESS_KEY_ID
+
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-analytics-secret
+                  key: AWS_SECRET_ACCESS_KEY

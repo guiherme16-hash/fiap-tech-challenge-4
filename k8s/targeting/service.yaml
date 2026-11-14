@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tc2-targeting-service
+  namespace: tc2-targeting
+spec:
+  type: ClusterIP
+  selector:
+    app: tc2-targeting
+
+  ports:
+    - protocol: TCP
+      port: 8003
+      targetPort: 8003

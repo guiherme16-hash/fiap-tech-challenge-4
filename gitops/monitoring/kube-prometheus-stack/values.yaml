@@ -1,0 +1,110 @@
+# =====================================================================
+# kube-prometheus-stack — Prometheus + Grafana + Alertmanager
+#   + node-exporter + kube-state-metrics
+# Chart: prometheus-community/kube-prometheus-stack 93.3.0
+# Namespace: monitoring   |   Release name: kps
+#
+# Acesso ao Grafana no demo (mais confiavel):
+#   kubectl port-forward svc/kps-grafana -n monitoring 3000:80
+#   usuario/senha vem do Secret "grafana-admin" (ver gitops/scripts/create-monitoring-secrets.ps1)
+# =====================================================================
+
+# ------------------------- Grafana -------------------------
+grafana:
+  enabled: true
+
+  # Senha NUNCA no git: vem de um Secret criado fora do GitOps.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # Dashboards padrao de Kubernetes ja inclusos no chart
+  defaultDashboardsEnabled: true
+
+  # Sidecar que auto-carrega dashboards e datasources a partir de ConfigMaps
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+
+  # Datasources extras (o do Prometheus, uid "prometheus", ja vem do chart)
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki-gateway.monitoring.svc.cluster.local
+      jsonData:
+        maxLines: 1000
+    - name: Tempo
+      type: tempo
+      uid: tempo
+      access: proxy
+      url: http://tempo.monitoring.svc.cluster.local:3200
+      jsonData:
+        # Service Graph (mapa de dependencias) le as metricas no Prometheus
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        # clicar num span leva aos logs correlacionados no Loki
+        tracesToLogsV2:
+          datasourceUid: loki
+
+  service:
+    type: ClusterIP
+
+# ------------------------- Prometheus -------------------------
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    scrapeInterval: 30s
+    # Descobre ServiceMonitors/PodMonitors/Rules de QUALQUER namespace
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 100m
+        memory: 400Mi
+      limits:
+        memory: 1Gi
+    # Sem storageSpec => emptyDir. Evita depender de StorageClass no demo.
+    # Em producao: configurar volumeClaimTemplate com EBS gp3.
+
+# ------------------------- Alertmanager -------------------------
+# Mantido habilitado; as rotas (PagerDuty/Discord) entram na Frente 4.
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+
+# ------------------------- Exporters de cluster -------------------------
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: true
+
+# Mantem os scrapes default dos componentes do control plane do EKS
+kubeApiServer:
+  enabled: true
+kubelet:
+  enabled: true
+kubeControllerManager:
+  enabled: false   # gerenciado pela AWS no EKS, nao exposto
+kubeScheduler:
+  enabled: false   # idem
+kubeEtcd:
+  enabled: false   # idem
+kubeProxy:
+  enabled: true

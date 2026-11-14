@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tc2-ingress
+  namespace: tc2-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+
+spec:
+  ingressClassName: nginx
+
+  rules:
+    - http:
+        paths:
+          - path: /auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tc2-auth-route-service
+                port:
+                  number: 8001
+                  
+          - path: /flags(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tc2-flags-route-service
+                port:
+                  number: 8002
+
+          - path: /target(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tc2-targeting-route-service
+                port:
+                  number: 8003
+          - path: /evaluation(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tc2-evaluation-route-service
+                port:
+                  number: 8004
+          - path: /analytics(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tc2-analytics-route-service
+                port:
+                  number: 8005

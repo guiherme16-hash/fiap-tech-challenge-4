@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>ToggleMaster Fase 4 — Suas Tarefas</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1a1a1a; line-height: 1.5; font-size: 12px; }
+  h1 { font-size: 22px; margin: 0 0 2px; color: #0b2545; }
+  h2 { font-size: 15px; margin: 22px 0 8px; color: #0b2545; border-bottom: 2px solid #13315c; padding-bottom: 3px; }
+  h3 { font-size: 13px; margin: 14px 0 4px; color: #134074; }
+  .sub { color: #555; margin: 0 0 10px; font-size: 11px; }
+  .callout { border-left: 4px solid #2a9d8f; background: #eef7f5; padding: 10px 14px; margin: 12px 0; border-radius: 4px; }
+  .warn { border-left: 4px solid #e76f51; background: #fdf0ec; }
+  .cost { border-left: 4px solid #e9c46a; background: #fdf8ec; }
+  ul.todo { list-style: none; padding-left: 4px; }
+  ul.todo li { margin: 5px 0; padding-left: 24px; position: relative; }
+  ul.todo li::before { content: "\2610"; position: absolute; left: 0; font-size: 15px; color: #13315c; top: -1px; }
+  code { background: #f0f0f3; padding: 1px 5px; border-radius: 3px; font-family: Consolas, monospace; font-size: 11px; }
+  .copy { background: #0b2545; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 10px; font-weight: bold; }
+  a { color: #134074; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 11px; }
+  th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { background: #0b2545; color: #fff; }
+  .tag { display: inline-block; background: #134074; color: #fff; font-size: 10px; padding: 1px 7px; border-radius: 10px; margin-left: 6px; }
+  .mini { font-size: 10.5px; color: #444; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<h1>ToggleMaster &middot; Fase 4 — Suas Tarefas</h1>
+<p class="sub">O que SÓ VOCÊ pode fazer, enquanto eu fico codando as 4 frentes. Leia com calma.</p>
+
+<div class="callout">
+  <strong>Dá pra ter segunda livre?</strong> Sim — com uma condição: a integração na AWS tem que rolar no <strong>domingo</strong>, não na segunda.
+  Codar as 4 frentes é comigo (sábado + domingo). O que consome tempo é subir o cluster, fazer os traces aparecerem ponta a ponta e gravar o vídeo.
+  Se fizermos isso no domingo à noite, <strong>segunda vira folga</strong>.
+</div>
+
+<h2>É tanta coisa assim? — a real</h2>
+<p>É bastante superfície, mas pouca complexidade por peça. E o grosso (o código) é comigo. Resumo de quem faz o quê:</p>
+<table>
+  <tr><th>Parte</th><th>Quem faz</th><th>Quando</th></tr>
+  <tr><td>Código das 4 frentes (stack, OTel, instrumentação, alertas, self-healing)</td><td>Eu</td><td>Sáb + Dom</td></tr>
+  <tr><td>Criar as 2 contas grátis (abaixo)</td><td>Você</td><td>Hoje (~20 min)</td></tr>
+  <tr><td>Subir o EKS e rodar os comandos na SUA AWS</td><td>Você (eu te passo os comandos)</td><td>Domingo</td></tr>
+  <tr><td>Tirar os prints e gravar o vídeo</td><td>Você (eu faço o roteiro)</td><td>Domingo/Segunda</td></tr>
+</table>
+
+<h2>FAÇA AGORA — 2 contas grátis <span class="tag">~20 min</span></h2>
+<p class="sub">Crie as duas e guarde os 2 segredos num bloco de notas. A gente injeta no cluster no domingo.</p>
+
+<div class="callout">
+  <strong>APM/Tracing mudou (boa notícia):</strong> o professor liberou cobrir o APM com a stack Grafana open-source, então <strong>NÃO precisa de New Relic</strong>. Os traces vão pro <strong>Grafana Tempo</strong>, que roda dentro do próprio cluster — sem conta externa, sem chave. Uma preocupação a menos. Sobraram só 2 contas:
+</div>
+
+<h3>1) PagerDuty <span class="tag">Incidente</span></h3>
+<ul class="todo">
+  <li>Entre em <a href="https://www.pagerduty.com/sign-up/">https://www.pagerduty.com/sign-up/</a> e crie a conta (trial/free).</li>
+  <li>Menu <strong>Services</strong> &rarr; <strong>New Service</strong> &rarr; nome <code>togglemaster</code>.</li>
+  <li>Na etapa de integração, escolha <strong>Events API V2</strong> e finalize.</li>
+  <li>Abra o serviço criado &rarr; aba <strong>Integrations</strong> &rarr; <span class="copy">COPIE</span> a <strong>Integration Key</strong> (32 caracteres).</li>
+</ul>
+
+<h3>2) Discord <span class="tag">ChatOps / Aviso</span></h3>
+<ul class="todo">
+  <li>Num servidor seu (ou crie um grátis em <a href="https://discord.com/">https://discord.com/</a>): <strong>Configurações do Servidor</strong> &rarr; <strong>Integrações</strong> &rarr; <strong>Webhooks</strong>.</li>
+  <li><strong>Novo Webhook</strong> &rarr; escolha o canal (ex.: <code>#alertas</code>) &rarr; <span class="copy">COPIE</span> a <strong>URL do Webhook</strong>.</li>
+</ul>
+
+<div class="callout warn">
+  <strong>Regra de ouro dos segredos:</strong> NÃO cole as 2 chaves aqui no chat e NÃO faça commit delas no git.
+  Guarde num bloco de notas local. No domingo a gente injeta tudo via <em>Secret</em> do Kubernetes (fora do git), do mesmo jeito que já é feito com as senhas de banco.
+</div>
+
+<h2>Pra o domingo — deixe pronto</h2>
+<ul class="todo">
+  <li><strong>Login AWS:</strong> use o profile <code>fiap</code> (credenciais na pasta <code>.aws</code>). Confirme que <code>aws sso login --profile fiap</code> funciona e que <code>kubectl</code>/<code>terraform</code> enxergam a conta.</li>
+  <li><strong>Repositório da Fase 4:</strong> me diga a URL do repo no GitHub onde a Fase 4 vai morar (os manifests do ArgoCD ainda apontam pro repo da Fase 3). Com a URL eu faço um ajuste único em tudo.</li>
+  <li><strong>GitHub:</strong> confirme que você consegue adicionar <em>Secrets</em> no repo (Settings &rarr; Secrets and variables &rarr; Actions). É o que o self-healing vai usar.</li>
+</ul>
+
+<div class="callout cost">
+  <strong>Custo AWS:</strong> EKS + load balancers + bancos custam por hora. A gente sobe só no domingo pra testar/gravar e dá <code>terraform destroy</code> depois. Não deixe o cluster no ar de um dia pro outro.
+</div>
+
+<h2>O que eu estou construindo em paralelo</h2>
+<table>
+  <tr><th>#</th><th>Frente</th><th>O que entrega</th></tr>
+  <tr><td>1</td><td>Stack opensource</td><td>Prometheus + Loki + Grafana no GitOps + dashboard customizado</td></tr>
+  <tr><td>2</td><td>OTel Collector</td><td>O "correio central" recebendo e roteando métricas/logs/traces</td></tr>
+  <tr><td>3</td><td>Instrumentação + APM</td><td>Os 5 serviços emitindo traces pro Grafana Tempo (service graph)</td></tr>
+  <tr><td>4</td><td>Alertas + Self-Healing</td><td>Alerta &rarr; PagerDuty &rarr; Discord &rarr; reinício automático do pod</td></tr>
+</table>
+
+<hr>
+
+<h2>Cola rápida (pro vídeo)</h2>
+<p class="mini">Os conceitos em 1 frase, pra você narrar sem travar:</p>
+<ul class="mini">
+  <li><strong>Métricas (Prometheus):</strong> os sinais vitais — CPU, memória, nº de requisições. Como o painel do carro.</li>
+  <li><strong>Logs (Loki):</strong> o diário detalhado do que cada serviço registrou. Onde se acha o erro.</li>
+  <li><strong>Traces (Grafana Tempo / APM):</strong> o caminho de UMA requisição passando por vários serviços. Como rastrear uma encomenda.</li>
+  <li><strong>OTel Collector:</strong> o correio central que recebe tudo dos serviços e distribui pra ferramenta certa. Peça obrigatória.</li>
+  <li><strong>Grafana:</strong> a "TV" com os painéis.</li>
+  <li><strong>Alerta &rarr; PagerDuty &rarr; Discord:</strong> o alarme que abre incidente e avisa a equipe.</li>
+  <li><strong>Self-Healing:</strong> o piloto automático que reinicia o serviço sozinho antes de incomodar alguém.</li>
+</ul>
+
+</body>
+</html>

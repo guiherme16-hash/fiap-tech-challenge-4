@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tc2-evaluation
+  namespace: tc2-evaluation
+  labels:
+    app: tc2-evaluation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tc2-evaluation
+  template:
+    metadata:
+      labels:
+        app: tc2-evaluation
+    spec:
+      # IRSA: credenciais AWS vêm da role associada ao ServiceAccount (sem chaves).
+      serviceAccountName: tc2-evaluation-sa
+      containers:
+        - name: evaluation-service
+          # A tag é atualizada automaticamente pelo pipeline de CI (bump do GitOps).
+          image: 521590706153.dkr.ecr.us-east-1.amazonaws.com/evaluation-service:958801c
+          ports:
+            - containerPort: 8004
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: PORT
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: REDIS_URL
+            - name: FLAG_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: FLAG_SERVICE_URL
+            - name: TARGETING_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: TARGETING_SERVICE_URL
+            - name: AWS_SQS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: AWS_SQS_URL
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: AWS_REGION

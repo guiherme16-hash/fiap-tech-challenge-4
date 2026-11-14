@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tc2-evaluation
+  namespace: tc2-evaluation
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: tc2-evaluation
+
+  template:
+    metadata:
+      labels:
+        app: tc2-evaluation
+
+    spec:
+      containers:
+        - name: evaluation-service
+          image: 521590706153.dkr.ecr.us-east-1.amazonaws.com/tc2-evaluation-service:v1
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          ports:
+            - containerPort: 8004
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          volumeMounts:
+            - name: rds-ca
+              mountPath: /etc/ssl/rds
+              readOnly: true
+
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: PORT
+                  
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: REDIS_URL
+                  
+            - name: FLAG_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: FLAG_SERVICE_URL
+                  
+            - name: TARGETING_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: TARGETING_SERVICE_URL
+                  
+            - name: AWS_SQS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: AWS_SQS_URL
+                  
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-evaluation-config
+                  key: AWS_REGION
+      
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-evaluation-secret
+                  key: AWS_ACCESS_KEY_ID
+
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-evaluation-secret
+                  key: AWS_SECRET_ACCESS_KEY
+      volumes:
+        - name: rds-ca
+          configMap:
+            name: rds-ca

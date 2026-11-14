@@ -1,0 +1,29 @@
+name: evaluation-service
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "evaluation-service/**"
+      - ".github/workflows/evaluation-service.yml"
+      - ".github/workflows/_reusable-go.yml"
+      - ".github/ci-trigger"
+  pull_request:
+    paths:
+      - "evaluation-service/**"
+      - ".github/workflows/evaluation-service.yml"
+      - ".github/workflows/_reusable-go.yml"
+      - ".github/ci-trigger"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_reusable-go.yml
+    with:
+      service_name: evaluation-service
+      service_path: evaluation-service
+      ecr_repository: evaluation-service

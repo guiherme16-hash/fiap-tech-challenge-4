@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tc2-evaluation-sa
+  namespace: tc2-evaluation
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::521590706153:role/togglemaster-prod-evaluation-irsa
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tc2-evaluation-service
+  namespace: tc2-evaluation
+spec:
+  type: ClusterIP
+  selector:
+    app: tc2-evaluation
+  ports:
+    - protocol: TCP
+      port: 8004
+      targetPort: 8004
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tc2-evaluation-config
+  namespace: tc2-evaluation
+data:
+  PORT: "8004"
+  # Redis do ElastiCache (transit encryption OFF -> usa redis://).
+  REDIS_URL: "redis://togglemaster-prod-redis.galx4m.ng.0001.use1.cache.amazonaws.com:6379"
+  FLAG_SERVICE_URL: "http://tc2-flags-service.tc2-flags.svc.cluster.local:8002"
+  TARGETING_SERVICE_URL: "http://tc2-targeting-service.tc2-targeting.svc.cluster.local:8003"
+  AWS_SQS_URL: "https://sqs.us-east-1.amazonaws.com/521590706153/analytics-service-sqs"
+  AWS_REGION: "us-east-1"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: tc2-evaluation-hpa
+  namespace: tc2-evaluation
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: tc2-evaluation
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -1,0 +1,29 @@
+name: analytics-service
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "analytics-service/**"
+      - ".github/workflows/analytics-service.yml"
+      - ".github/workflows/_reusable-python.yml"
+      - ".github/ci-trigger"
+  pull_request:
+    paths:
+      - "analytics-service/**"
+      - ".github/workflows/analytics-service.yml"
+      - ".github/workflows/_reusable-python.yml"
+      - ".github/ci-trigger"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  ci:
+    uses: ./.github/workflows/_reusable-python.yml
+    with:
+      service_name: analytics-service
+      service_path: analytics-service
+      ecr_repository: analytics-service

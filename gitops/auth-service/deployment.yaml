@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tc2-auth
+  namespace: tc2-auth
+  labels:
+    app: tc2-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tc2-auth
+  template:
+    metadata:
+      labels:
+        app: tc2-auth
+    spec:
+      containers:
+        - name: auth-service
+          # A tag é atualizada automaticamente pelo pipeline de CI (bump do GitOps).
+          image: 521590706153.dkr.ecr.us-east-1.amazonaws.com/auth-service:958801c
+          ports:
+            - containerPort: 8001
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          env:
+            - name: PORT
+              value: "8001"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-auth-secret
+                  key: DATABASE_URL
+            - name: MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: tc2-auth-secret
+                  key: MASTER_KEY

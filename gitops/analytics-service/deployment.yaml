@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tc2-analytics
+  namespace: tc2-analytics
+  labels:
+    app: tc2-analytics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tc2-analytics
+  template:
+    metadata:
+      labels:
+        app: tc2-analytics
+    spec:
+      # IRSA: credenciais AWS vêm da role associada ao ServiceAccount (sem chaves).
+      serviceAccountName: tc2-analytics-sa
+      containers:
+        - name: analytics-service
+          # A tag é atualizada automaticamente pelo pipeline de CI (bump do GitOps).
+          image: 521590706153.dkr.ecr.us-east-1.amazonaws.com/analytics-service:9166015
+          ports:
+            - containerPort: 8005
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Bug corrigido: no Phase 2 havia vários blocos "env:" (só o último valia),
+          # descartando PORT, AWS_REGION e AWS_DYNAMODB_TABLE. Agora é uma única lista.
+          env:
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: PORT
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_REGION
+            - name: AWS_DYNAMODB_TABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_DYNAMODB_TABLE
+            - name: AWS_SQS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: tc2-analytics-config
+                  key: AWS_SQS_URL

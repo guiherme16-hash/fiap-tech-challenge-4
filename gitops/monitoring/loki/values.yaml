@@ -1,0 +1,77 @@
+# =====================================================================
+# Loki — modo monolitico (SingleBinary), storage filesystem.
+# Simples e barato para o demo (dado efemero, aceitavel aqui).
+# Chart: grafana/loki 7.6.0   |   Namespace: monitoring   |   Release: loki
+#
+# Em producao: deploymentMode SimpleScalable + object_store S3.
+# =====================================================================
+
+deploymentMode: SingleBinary
+
+loki:
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: index_
+          period: 24h
+  storage:
+    type: filesystem
+  limits_config:
+    retention_period: 72h
+    allow_structured_metadata: true
+    volume_enabled: true
+  analytics:
+    reporting_enabled: false
+  pattern_ingester:
+    enabled: false
+
+# Uma unica instancia faz tudo (read+write+backend)
+singleBinary:
+  replicas: 1
+  persistence:
+    enabled: false   # emptyDir no demo
+
+# Desliga os modos escalaveis (nao usados no SingleBinary)
+read:
+  replicas: 0
+write:
+  replicas: 0
+backend:
+  replicas: 0
+
+# Caches memcached desligados para economizar recursos
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# Componentes auxiliares desligados
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
+
+# Gateway (nginx) e o endpoint que o Grafana/OTel usam
+gateway:
+  enabled: true
+  replicas: 1
+
+# Sem auto-monitoramento (evita dependencias extras)
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+  serviceMonitor:
+    enabled: false
+  rules:
+    enabled: false
+  dashboards:
+    enabled: false

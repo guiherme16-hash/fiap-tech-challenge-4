@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tc2-flags-config
+  namespace: tc2-flags
+
+data:
+  PORT: "8003"
+  AUTH_SERVICE_URL: "http://tc2-auth-service.tc2-auth.svc.cluster.local:8001"

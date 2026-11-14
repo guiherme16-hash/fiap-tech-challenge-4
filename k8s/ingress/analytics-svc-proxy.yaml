@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: tc2-analytics-route-service
+  namespace: tc2-ingress
+
+spec:
+  type: ExternalName
+
+  externalName: tc2-analytics-service.tc2-analytics.svc.cluster.local
+
+  ports:
+    - port: 8005
+      targetPort: 8005

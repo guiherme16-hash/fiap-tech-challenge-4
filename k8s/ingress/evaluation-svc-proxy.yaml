@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: tc2-evaluation-route-service
+  namespace: tc2-ingress
+
+spec:
+  type: ExternalName
+
+  externalName: tc2-evaluation-service.tc2-evaluation.svc.cluster.local
+
+  ports:
+    - port: 8004
+      targetPort: 8004

@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // Contexto global para o Redis
@@ -29,6 +30,14 @@ type App struct {
 
 func main() {
 	_ = godotenv.Load() // Carrega .env para dev local
+
+	// --- OpenTelemetry ---
+	otelShutdown, otelErr := initOTel(context.Background())
+	if otelErr != nil {
+		log.Printf("OTel: inicializacao falhou, seguindo sem telemetria: %v", otelErr)
+	} else {
+		defer func() { _ = otelShutdown(context.Background()) }()
+	}
 
 	// --- Configuração ---
 	port := os.Getenv("PORT")
@@ -62,7 +71,7 @@ func main() {
 	}
 
 	// --- Inicializa Clientes ---
-	
+
 	// Cliente Redis
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -85,9 +94,11 @@ func main() {
 		log.Println("Cliente SQS inicializado com sucesso.")
 	}
 
-	// Cliente HTTP (com timeout)
+	// Cliente HTTP instrumentado: propaga o contexto de trace (traceparent)
+	// nas chamadas de saída para flag-service e targeting-service.
 	httpClient := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout:   5 * time.Second,
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
 	}
 
 	// Cria a instância da App
@@ -105,8 +116,15 @@ func main() {
 	mux.HandleFunc("/health", app.healthHandler)
 	mux.HandleFunc("/evaluate", app.evaluationHandler)
 
+	// Envolve o mux com o handler do OTel: cria spans + metricas HTTP do servidor.
+	handler := otelhttp.NewHandler(mux, "http.server",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	)
+
 	log.Printf("Serviço de Avaliação (Go) rodando na porta %s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }

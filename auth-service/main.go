@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
 	"os"
+
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/joho/godotenv"
@@ -19,6 +22,14 @@ type App struct {
 func main() {
 	// Carrega o .env para desenvolvimento local. Em produção, isso não fará nada.
 	_ = godotenv.Load()
+
+	// --- OpenTelemetry ---
+	otelShutdown, otelErr := initOTel(context.Background())
+	if otelErr != nil {
+		log.Printf("OTel: inicializacao falhou, seguindo sem telemetria: %v", otelErr)
+	} else {
+		defer func() { _ = otelShutdown(context.Background()) }()
+	}
 
 	// --- Configuração ---
 	port := os.Getenv("PORT")
@@ -59,8 +70,15 @@ func main() {
 	// Eles são protegidos pelo middleware de autenticação
 	mux.Handle("/admin/keys", app.masterKeyAuthMiddleware(http.HandlerFunc(app.createKeyHandler)))
 
+	// Envolve o mux com o handler do OTel: cria spans + metricas HTTP do servidor.
+	handler := otelhttp.NewHandler(mux, "http.server",
+		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+			return r.Method + " " + r.URL.Path
+		}),
+	)
+
 	log.Printf("Serviço de Autenticação (Go) rodando na porta %s", port)
-	if err := http.ListenAndServe(":"+port, mux); err != nil {
+	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
 }

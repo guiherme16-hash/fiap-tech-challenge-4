@@ -18,7 +18,8 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8005
+    PORT=8005 \
+    OTEL_SERVICE_NAME=analytics-service
 
 WORKDIR /app
 
@@ -33,4 +34,4 @@ COPY . .
 
 EXPOSE 8005
 
-CMD ["gunicorn", "--workers", "1", "--threads", "4", "--bind", "0.0.0.0:8005", "app:app"]
+CMD ["opentelemetry-instrument", "gunicorn", "--workers", "1", "--threads", "4", "--bind", "0.0.0.0:8005", "app:app"]

@@ -1,0 +1,25 @@
+# Application do ArgoCD: self-healer (Runbook Automation in-cluster).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: self-healer
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
+    targetRevision: main
+    path: gitops/monitoring/self-healer
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

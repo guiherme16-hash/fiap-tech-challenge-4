@@ -22,6 +22,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV OTEL_SERVICE_NAME=targeting-service
 
 WORKDIR /app
 
@@ -36,4 +37,4 @@ COPY . .
 
 EXPOSE 8003
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8003", "--workers", "2", "--threads", "4", "--timeout", "30", "app:app"]
+CMD ["opentelemetry-instrument", "gunicorn", "--bind", "0.0.0.0:8003", "--workers", "2", "--threads", "4", "--timeout", "30", "app:app"]

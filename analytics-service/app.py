@@ -94,7 +94,8 @@ def sqs_worker_loop():
             response = sqs_client.receive_message(
                 QueueUrl=SQS_QUEUE_URL,
                 MaxNumberOfMessages=10,  # Processa em lotes de até 10
-                WaitTimeSeconds=20
+                WaitTimeSeconds=20,
+                MessageAttributeNames=['All']  # necessario p/ extrair o trace (traceparent) do evento
             )
             
             messages = response.get('Messages', [])

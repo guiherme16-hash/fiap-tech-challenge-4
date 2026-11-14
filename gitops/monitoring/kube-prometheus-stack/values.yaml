@@ -80,14 +80,45 @@ prometheus:
     # Em producao: configurar volumeClaimTemplate com EBS gp3.
 
 # ------------------------- Alertmanager -------------------------
-# Mantido habilitado; as rotas (PagerDuty/Discord) entram na Frente 4.
 alertmanager:
   enabled: true
   alertmanagerSpec:
+    # Monta o Secret com a routing key do PagerDuty e o webhook do Discord
+    # em /etc/alertmanager/secrets/alertmanager-secrets/
+    secrets:
+      - alertmanager-secrets
     resources:
       requests:
         cpu: 25m
         memory: 64Mi
+  # Roteia alertas critical -> PagerDuty (incidente) + Discord (ChatOps) + self-healer (runbook)
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "null"
+      group_by: ["alertname", "service_name"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 2h
+      routes:
+        - matchers:
+            - severity = critical
+          receiver: togglemaster-critical
+    receivers:
+      - name: "null"
+      - name: togglemaster-critical
+        pagerduty_configs:
+          - routing_key_file: /etc/alertmanager/secrets/alertmanager-secrets/pagerduty-routing-key
+            severity: critical
+            description: "{{ .CommonAnnotations.summary }}"
+        discord_configs:
+          - webhook_url_file: /etc/alertmanager/secrets/alertmanager-secrets/discord-webhook-url
+            title: "[FIRING] {{ .CommonLabels.alertname }}"
+            message: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
+        webhook_configs:
+          - url: http://self-healer.monitoring.svc.cluster.local:8080/webhook
+            send_resolved: false
 
 # ------------------------- Exporters de cluster -------------------------
 kubeStateMetrics:

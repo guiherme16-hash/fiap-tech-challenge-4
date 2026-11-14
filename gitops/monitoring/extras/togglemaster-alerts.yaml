@@ -1,0 +1,27 @@
+# Alerta inteligente: taxa de erros HTTP 5xx > 5% por microsservico.
+# Usa a metrica http_server_request_duration_seconds_count (emitida pela
+# instrumentacao OTel dos servicos) com o label http_response_status_code.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: togglemaster-alerts
+  namespace: monitoring
+  labels:
+    release: kps
+spec:
+  groups:
+    - name: togglemaster.http
+      rules:
+        - alert: HighHttp5xxRate
+          expr: |
+            (
+              sum by (service_name) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+              /
+              sum by (service_name) (rate(http_server_request_duration_seconds_count[5m]))
+            ) > 0.05
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Alta taxa de 5xx em {{ $labels.service_name }}"
+            description: "O servico {{ $labels.service_name }} esta com taxa de erros HTTP 5xx acima de 5% nos ultimos 5 minutos (atual: {{ $value | humanizePercentage }}). Self-healing acionado."

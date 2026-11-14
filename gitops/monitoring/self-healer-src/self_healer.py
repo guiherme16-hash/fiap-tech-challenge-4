@@ -1,0 +1,99 @@
+"""
+Self-Healer (Runbook Automation) - ToggleMaster Fase 4.
+
+Recebe o webhook do Alertmanager e reinicia o deployment do servico com
+problema, equivalente a `kubectl rollout restart deployment/<x>`.
+
+Puro stdlib (sem pip): fala direto com a API do Kubernetes usando o token
+e o CA do ServiceAccount montados no pod. Roda em python:3.12-slim.
+"""
+import json
+import os
+import ssl
+import urllib.request
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+# Mapeia o service_name (label do alerta) -> (namespace, deployment) no cluster.
+SERVICE_MAP = {
+    "auth-service": ("tc2-auth", "tc2-auth"),
+    "evaluation-service": ("tc2-evaluation", "tc2-evaluation"),
+    "flag-service": ("tc2-flags", "tc2-flags"),
+    "targeting-service": ("tc2-targeting", "tc2-targeting"),
+    "analytics-service": ("tc2-analytics", "tc2-analytics"),
+}
+
+SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
+API = "https://kubernetes.default.svc"
+
+
+def _token():
+    with open(f"{SA_DIR}/token", encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def _ssl_ctx():
+    return ssl.create_default_context(cafile=f"{SA_DIR}/ca.crt")
+
+
+def restart_deployment(ns, deploy):
+    """Faz um rollout restart via patch na annotation do pod template."""
+    url = f"{API}/apis/apps/v1/namespaces/{ns}/deployments/{deploy}"
+    now = datetime.now(timezone.utc).isoformat()
+    patch = {
+        "spec": {"template": {"metadata": {"annotations": {
+            "kubectl.kubernetes.io/restartedAt": now,
+            "self-healer/restarted-by": "alertmanager",
+        }}}}
+    }
+    req = urllib.request.Request(url, data=json.dumps(patch).encode(), method="PATCH")
+    req.add_header("Authorization", f"Bearer {_token()}")
+    req.add_header("Content-Type", "application/strategic-merge-patch+json")
+    with urllib.request.urlopen(req, context=_ssl_ctx(), timeout=10) as resp:
+        return resp.status
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, fmt, *args):
+        print("[self-healer]", fmt % args, flush=True)
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"status":"ok"}')
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length) if length else b"{}"
+        try:
+            payload = json.loads(raw or b"{}")
+        except Exception:
+            payload = {}
+
+        restarted = []
+        for al in payload.get("alerts", []):
+            if al.get("status") != "firing":
+                continue
+            svc = al.get("labels", {}).get("service_name")
+            target = SERVICE_MAP.get(svc)
+            if not target or svc in restarted:
+                continue
+            ns, deploy = target
+            try:
+                status = restart_deployment(ns, deploy)
+                print(f"[self-healer] RESTART {ns}/{deploy} (service_name={svc}) -> HTTP {status}", flush=True)
+                restarted.append(svc)
+            except Exception as e:  # noqa: BLE001
+                print(f"[self-healer] ERRO ao reiniciar {ns}/{deploy}: {e}", flush=True)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"restarted": restarted}).encode())
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
+    print(f"[self-healer] ouvindo na porta {port}", flush=True)
+    HTTPServer(("0.0.0.0", port), Handler).serve_forever()

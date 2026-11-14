@@ -26,7 +26,8 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8002
+    PORT=8002 \
+    OTEL_SERVICE_NAME=flag-service
 
 # Patches de seguranca + bibliotecas de runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
@@ -45,4 +46,4 @@ COPY . .
 
 EXPOSE 8002
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8002", "--workers", "2", "--threads", "4", "--timeout", "60", "app:app"]
+CMD ["opentelemetry-instrument", "gunicorn", "--bind", "0.0.0.0:8002", "--workers", "2", "--threads", "4", "--timeout", "60", "app:app"]

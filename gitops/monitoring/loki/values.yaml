@@ -36,7 +36,14 @@ loki:
 singleBinary:
   replicas: 1
   persistence:
-    enabled: false   # emptyDir no demo
+    enabled: false   # sem PVC
+  # O root FS do container e read-only; monta um emptyDir gravavel em /var/loki
+  extraVolumes:
+    - name: loki-data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: loki-data
+      mountPath: /var/loki
 
 # Desliga os modos escalaveis (nao usados no SingleBinary)
 read:

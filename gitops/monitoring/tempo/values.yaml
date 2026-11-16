@@ -16,6 +16,11 @@ replicas: 1
 tempo:
   reportingEnabled: false
 
+  # O ballast padrao do chart e 1024MB. Com limite de memoria baixo, o Go adia o GC
+  # ate o heap chegar perto de 1GB e o container estoura (OOMKilled 137) antes do GC rodar.
+  # Reduzimos o ballast para caber com folga no limite abaixo.
+  memBallastSizeMbs: 256
+
   # Service graph vem do OTel Collector -> nao precisa do gerador do Tempo
   metricsGenerator:
     enabled: false
@@ -41,9 +46,10 @@ tempo:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
       memory: 512Mi
+    limits:
+      # 512Mi era insuficiente sob carga de consulta do Grafana (Service Graph / TraceQL) -> OOMKilled.
+      memory: 2Gi
 
 # emptyDir no demo
 persistence:

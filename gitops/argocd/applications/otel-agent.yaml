@@ -15,7 +15,6 @@ spec:
         releaseName: otel-agent
         valueFiles:
           - $values/gitops/monitoring/otel-agent/values.yaml
-    # TODO(repo-sweep): trocar para a URL final do repo da Fase 4
     - repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
       targetRevision: main
       ref: values

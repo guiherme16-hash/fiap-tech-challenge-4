@@ -1,5 +1,4 @@
 # Dashboard customizado do Grafana (carregado automaticamente pelo sidecar).
-# GERADO a partir de gitops/monitoring/dashboards-src/togglemaster-overview.json
 apiVersion: v1
 kind: ConfigMap
 metadata:

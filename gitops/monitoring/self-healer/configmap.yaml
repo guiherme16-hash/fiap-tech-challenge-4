@@ -1,5 +1,4 @@
 # ConfigMap com o codigo do self-healer (montado em /app no pod).
-# GERADO a partir de gitops/monitoring/self-healer-src/self_healer.py
 apiVersion: v1
 kind: ConfigMap
 metadata:

@@ -16,7 +16,6 @@ spec:
         releaseName: loki
         valueFiles:
           - $values/gitops/monitoring/loki/values.yaml
-    # TODO(repo-sweep): trocar para a URL final do repo da Fase 4
     - repoURL: https://github.com/guiherme16-hash/fiap-tech-challenge-4.git
       targetRevision: main
       ref: values

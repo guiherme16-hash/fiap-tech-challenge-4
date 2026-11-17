@@ -114,7 +114,7 @@ alertmanager:
             description: "{{ .CommonAnnotations.summary }}"
         discord_configs:
           - webhook_url_file: /etc/alertmanager/secrets/alertmanager-secrets/discord-webhook-url
-            title: "[FIRING] {{ .CommonLabels.alertname }}"
+            title: "[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }}"
             message: "{{ range .Alerts }}{{ .Annotations.description }}\n{{ end }}"
         webhook_configs:
           - url: http://self-healer.monitoring.svc.cluster.local:8080/webhook
